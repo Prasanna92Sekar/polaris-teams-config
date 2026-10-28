@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polaris Notifier Setup</title>
+<script src="https://res.cdn.office.net/teams-js/2.31.0/js/MicrosoftTeams.min.js"></script>
+<style>
+  body { font-family: Segoe UI, system-ui, sans-serif; margin: 24px; color: #222; }
+  h2 { margin-top: 0; }
+  pre { background: #f3f3f3; padding: 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #107c10; } .err { color: #a4262c; }
+</style>
+</head>
+<body>
+<h2>Polaris Notifier</h2>
+<p>Click <b>Save</b> to connect this channel to Polaris notifications.</p>
+<pre id="out">Loading Teams context...</pre>
+<p id="status"></p>
+
+<script>
+// Optional: paste your webhook.site URL here to see the IDs arrive like Polaris would receive them.
+// Leave empty to only show the IDs on screen.
+const WEBHOOK_URL = "https://webhook.site/2bb3c8fd-4d47-450a-8c75-ef183ed1714c";
+
+const out = document.getElementById("out");
+const status = document.getElementById("status");
+
+(async () => {
+  try {
+    await microsoftTeams.app.initialize();
+    const ctx = await microsoftTeams.app.getContext();
+    const info = {
+      teamId_for_graph: ctx.team && ctx.team.groupId,
+      teamThreadId: ctx.team && ctx.team.internalId,
+      channelId: ctx.channel && ctx.channel.id,
+      channelName: ctx.channel && ctx.channel.displayName,
+      tenantId: ctx.user && ctx.user.tenant && ctx.user.tenant.id
+    };
+    out.textContent = JSON.stringify(info, null, 2);
+
+    if (WEBHOOK_URL) {
+      fetch(WEBHOOK_URL, { method: "POST", mode: "no-cors",
+        headers: { "Content-Type": "text/plain" }, body: JSON.stringify(info) })
+        .then(() => { status.textContent = "Sent to webhook."; status.className = "ok"; })
+        .catch(e => { status.textContent = "Webhook failed: " + e; status.className = "err"; });
+    }
+
+    microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+      microsoftTeams.pages.config.setConfig({
+        contentUrl: window.location.href,
+        entityId: "polaris-notifier",
+        suggestedDisplayName: "Polaris Notifier"
+      }).then(() => saveEvent.notifySuccess());
+    });
+    microsoftTeams.pages.config.setValidityState(true);
+  } catch (e) {
+    out.textContent = "Not running inside Teams, or SDK failed: " + e;
+    out.className = "err";
+  }
+})();
+</script>
+</body>
+</html>
